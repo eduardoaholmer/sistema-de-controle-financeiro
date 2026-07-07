@@ -47,3 +47,19 @@ Log incremental do que foi construído, por milestone/tarefa. Serve como referê
 - Troubleshooting: na primeira tentativa o engine não subia (`Docker Desktop is unable to start`) — a distro `docker-desktop` não tinha sido registrada no WSL. Resolvido com `wsl --shutdown` + reabertura do Docker Desktop, que recriou a distro corretamente.
 - `docker compose up --build -d`: as 3 imagens buildaram e os 3 containers (`db`, `backend`, `frontend`) subiram com sucesso.
 - Testado: `GET http://localhost:8000/` → `{"status":"ok"}`; `http://localhost:8000/docs` (Swagger) → 200; `http://localhost:5173/` (Vite/React) → 200.
+
+---
+
+## Milestone 2 — Banco de dados
+
+### 2.1 a 2.4 — Modelagem, ER, schema SQL
+- Decisão de design: tabela única `transacoes` com coluna `tipo` (ENUM `RECEITA`/`DESPESA`), em vez de tabelas separadas `receitas`/`despesas` — evita duplicação de schema e de CRUD, simplifica agregações do dashboard.
+- 3 tabelas: `usuarios`, `categorias` (com `tipo` e `usuario_id`), `transacoes` (com `tipo`, `categoria_id`, `usuario_id`).
+- `docs/database/modelagem.md`: diagrama ER (Mermaid) + tabela de decisões de design.
+- `docs/database/schema.sql`: DDL de referência. Vai ser recriado via SQLAlchemy + Alembic no Milestone 3; este arquivo fica como documentação/validação manual.
+- Constraints aplicadas: `valor NUMERIC(12,2) CHECK (valor > 0)`, `UNIQUE (usuario_id, nome, tipo)` em categorias, `ON DELETE RESTRICT` em `transacoes.categoria_id`, `ON DELETE CASCADE` em `usuario_id`. Índices em `(usuario_id, data)` e `categoria_id`.
+
+### 2.5 — Validação no Postgres real
+- Schema aplicado no container `db` via `psql -f`.
+- Testado com dados reais: constraint UNIQUE, CHECK e FK RESTRICT rejeitaram inserts/deletes inválidos como esperado.
+- Dados de teste limpos com `TRUNCATE ... RESTART IDENTITY CASCADE` para o banco começar zerado no Milestone 3.
