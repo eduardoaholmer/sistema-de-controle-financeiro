@@ -91,3 +91,12 @@ Log incremental do que foi construído, por milestone/tarefa. Serve como referê
 - Logout: decisão consciente de **não** ter endpoint no backend — JWT é stateless; "logout" é o frontend descartar o token guardado (implementação real no Milestone 8).
 - Validado via `curl`: registro, e-mail duplicado (409), senha errada (401), rota protegida sem token (401), login válido, rota protegida com token válido, token adulterado (401) — os 7 casos se comportaram como esperado.
 - Usuário de teste (`eduardo@teste.com`) mantido no banco propositalmente, para uso nos próximos milestones (Categorias/Receitas/Despesas dependem de um `usuario_id` válido).
+
+---
+
+## Milestone 5 — CRUD de Categorias
+
+- `app/schemas/categoria.py`: `CategoriaCreate`/`CategoriaUpdate`/`CategoriaResponse`. Nenhum deles aceita `usuario_id` do cliente — sempre vem do token. `CategoriaUpdate` só permite editar `nome`: `tipo` é imutável após a criação (evita inconsistência com transações já vinculadas).
+- `app/crud/categoria.py`: toda consulta filtra por `id` **e** `usuario_id` juntos (não só depois de buscar) — categoria de outro usuário nunca é encontrada, retorna 404 em vez de vazar existência via 403.
+- `app/api/routes/categoria.py`: `POST/GET/GET-by-id/PUT/DELETE /categorias`, todas protegidas com `Depends(get_current_usuario)`. `GET /categorias?tipo=DESPESA` filtra por tipo (uso futuro: dropdown do frontend). `DELETE` captura `IntegrityError` do `ON DELETE RESTRICT` e devolve `409` com mensagem amigável em vez de erro 500 cru.
+- Validado via `curl` com o usuário de teste: criação (com acento — via arquivo, `curl -d` inline tem problema de encoding no Git Bash com caracteres UTF-8), duplicidade (409), listagem com e sem filtro, sem token (401), atualização, não encontrada (404), exclusão bem-sucedida (204), e exclusão bloqueada por transação vinculada (409) — inserida manualmente via SQL só para esse teste, já que o CRUD de Transações ainda não existe.
