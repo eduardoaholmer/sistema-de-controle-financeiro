@@ -77,3 +77,17 @@ Log incremental do que foi construído, por milestone/tarefa. Serve como referê
 - 2 migrations: criação das 3 tabelas, e depois os índices que faltaram na primeira rodada (correção feita como migration nova, não editando a já aplicada — mesmo princípio de não reescrever commits publicados).
 - Tabelas antigas do Milestone 2 (criadas via `schema.sql` manual) foram derrubadas — a partir de agora, as migrations do Alembic são a fonte de verdade do schema.
 - Validado: `docker compose run --rm backend alembic upgrade head` aplica limpo; `\d transacoes` no Postgres bate exatamente com os models; backend reiniciado e `GET /` segue respondendo `{"status":"ok"}`.
+
+---
+
+## Milestone 4 — Autenticação
+
+- `app/schemas/`: `UsuarioCreate`/`UsuarioResponse` (Pydantic, contrato da API — separado dos models do banco) e `Token`.
+- `app/core/security.py`: hash de senha com `bcrypt` (salt automático) e JWT com `pyjwt` (`criar_access_token`/`decodificar_access_token`, `sub` = id do usuário, expiração configurável).
+- `SECRET_KEY` adicionada ao `.env`/`.env.example` e passada ao container `backend` via `docker-compose.yml`.
+- `app/crud/usuario.py`: acesso a dados isolado das rotas (`get_usuario_by_email`, `get_usuario_by_id`, `criar_usuario`).
+- `app/api/deps.py`: `get_db` (sessão por requisição, padrão `yield`) e `get_current_usuario` (decodifica o JWT do header `Authorization`, busca o usuário, 401 se inválido) — dependência reutilizável pra proteger qualquer rota futura.
+- `app/api/routes/auth.py`: `POST /auth/register` (409 se e-mail duplicado), `POST /auth/login` (`OAuth2PasswordRequestForm`, 401 se credenciais inválidas), `GET /auth/me` (rota protegida de teste).
+- Logout: decisão consciente de **não** ter endpoint no backend — JWT é stateless; "logout" é o frontend descartar o token guardado (implementação real no Milestone 8).
+- Validado via `curl`: registro, e-mail duplicado (409), senha errada (401), rota protegida sem token (401), login válido, rota protegida com token válido, token adulterado (401) — os 7 casos se comportaram como esperado.
+- Usuário de teste (`eduardo@teste.com`) mantido no banco propositalmente, para uso nos próximos milestones (Categorias/Receitas/Despesas dependem de um `usuario_id` válido).
