@@ -42,4 +42,8 @@ Log incremental do que foi construído, por milestone/tarefa. Serve como referê
 - Credenciais do banco via `.env` (não versionado) + `.env.example` (versionado, template).
 - Volumes bind-mount em `backend`/`frontend` para hot-reload; volume anônimo em `frontend/node_modules` para não ser sobrescrito pelo host.
 - Volume nomeado `postgres_data` para persistir dados do banco entre restarts.
-- **Pendente:** validar `docker compose up` — Docker não está disponível neste ambiente de execução, precisa ser testado localmente pelo usuário (tarefa 1.7).
+### 1.7 — Validação com Docker
+- Docker Desktop instalado via `winget` (backend WSL2, distro `Ubuntu` já existia).
+- Troubleshooting: na primeira tentativa o engine não subia (`Docker Desktop is unable to start`) — a distro `docker-desktop` não tinha sido registrada no WSL. Resolvido com `wsl --shutdown` + reabertura do Docker Desktop, que recriou a distro corretamente.
+- `docker compose up --build -d`: as 3 imagens buildaram e os 3 containers (`db`, `backend`, `frontend`) subiram com sucesso.
+- Testado: `GET http://localhost:8000/` → `{"status":"ok"}`; `http://localhost:8000/docs` (Swagger) → 200; `http://localhost:5173/` (Vite/React) → 200.
