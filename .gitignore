@@ -1,0 +1,27 @@
+# --- Python / FastAPI (backend) ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# --- Node / React (frontend) ---
+node_modules/
+dist/
+build/
+
+# --- Variáveis de ambiente ---
+.env
+.env.local
+
+# --- Editor / SO ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+*.log
+
+# --- Claude Code (config local da máquina) ---
+.claude/settings.local.json
