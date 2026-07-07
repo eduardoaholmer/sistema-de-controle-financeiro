@@ -63,3 +63,17 @@ Log incremental do que foi construído, por milestone/tarefa. Serve como referê
 - Schema aplicado no container `db` via `psql -f`.
 - Testado com dados reais: constraint UNIQUE, CHECK e FK RESTRICT rejeitaram inserts/deletes inválidos como esperado.
 - Dados de teste limpos com `TRUNCATE ... RESTART IDENTITY CASCADE` para o banco começar zerado no Milestone 3.
+
+---
+
+## Milestone 3 — Backend base (FastAPI + SQLAlchemy + Alembic)
+
+- Backend reorganizado em pacote `app/` (`core/`, `db/`, `models/`), separando configuração, conexão e entidades. `main.py` movido para `app/main.py`.
+- `app/core/config.py`: `Settings` (pydantic-settings) lê `DATABASE_URL` do ambiente — falha rápido na inicialização se a variável não existir.
+- `app/db/session.py` (engine + `SessionLocal`) e `app/db/base.py` (`Base` declarativa).
+- Models SQLAlchemy (`Usuario`, `Categoria`, `Transacao`) mapeando 1:1 o schema do Milestone 2, incluindo `relationship`, `ForeignKey` com `ondelete`, `CheckConstraint`, `UniqueConstraint` e os dois índices compostos.
+- `docker-compose.yml`: adicionado `DATABASE_URL` ao serviço `backend` e `healthcheck` no `db` (`pg_isready`) com `depends_on: condition: service_healthy` — o backend só sobe depois que o Postgres aceita conexões de fato.
+- Alembic inicializado (`alembic init`), `env.py` configurado para usar `settings.database_url` e `Base.metadata` (autogenerate).
+- 2 migrations: criação das 3 tabelas, e depois os índices que faltaram na primeira rodada (correção feita como migration nova, não editando a já aplicada — mesmo princípio de não reescrever commits publicados).
+- Tabelas antigas do Milestone 2 (criadas via `schema.sql` manual) foram derrubadas — a partir de agora, as migrations do Alembic são a fonte de verdade do schema.
+- Validado: `docker compose run --rm backend alembic upgrade head` aplica limpo; `\d transacoes` no Postgres bate exatamente com os models; backend reiniciado e `GET /` segue respondendo `{"status":"ok"}`.
