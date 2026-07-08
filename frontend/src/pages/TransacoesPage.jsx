@@ -14,6 +14,18 @@ function mesAtual() {
 
 const FORM_VAZIO = { descricao: "", valor: "", data: "", categoria_id: "" };
 
+function SkeletonLinhas({ colunas, quantidade = 6 }) {
+  return Array.from({ length: quantidade }, (_, i) => (
+    <tr key={i}>
+      {Array.from({ length: colunas }, (_, j) => (
+        <td key={j}>
+          <div className="skeleton skeleton-linha" style={{ width: j === 1 ? "75%" : "55%" }} />
+        </td>
+      ))}
+    </tr>
+  ));
+}
+
 export function TransacoesPage() {
   const [transacoes, setTransacoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -103,66 +115,68 @@ export function TransacoesPage() {
         </label>
       </div>
 
-      <form className="card form-inline" onSubmit={handleSubmit}>
-        <label>
-          Descrição
-          <input
-            value={form.descricao}
-            onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-            required
-            minLength={2}
-          />
-        </label>
-        <label>
-          Valor
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={form.valor}
-            onChange={(e) => setForm({ ...form, valor: e.target.value })}
-            required
-          />
-        </label>
-        <label>
-          Data
-          <input
-            type="date"
-            value={form.data}
-            onChange={(e) => setForm({ ...form, data: e.target.value })}
-            required
-          />
-        </label>
-        <label>
-          Categoria
-          <select
-            value={form.categoria_id}
-            onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}
-            required
-          >
-            <option value="" disabled>
-              Selecione
-            </option>
-            {categorias.map((categoria) => (
-              <option key={categoria.id} value={categoria.id}>
-                {categoria.nome} ({categoria.tipo === "RECEITA" ? "Receita" : "Despesa"})
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit">{editandoId ? "Salvar" : "Adicionar"}</button>
-        {editandoId && (
-          <button type="button" className="secundario" onClick={cancelarEdicao}>
-            Cancelar
-          </button>
-        )}
+      <form className="card" onSubmit={handleSubmit}>
+        <div className="form-grid">
+          <label>
+            Descrição
+            <input
+              value={form.descricao}
+              onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              required
+              minLength={2}
+              placeholder="Ex: Aluguel"
+            />
+          </label>
+          <label>
+            Valor (R$)
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={form.valor}
+              onChange={(e) => setForm({ ...form, valor: e.target.value })}
+              required
+              placeholder="0,00"
+            />
+          </label>
+          <label>
+            Data
+            <input
+              type="date"
+              value={form.data}
+              onChange={(e) => setForm({ ...form, data: e.target.value })}
+              required
+            />
+          </label>
+          <label>
+            Categoria
+            <select
+              value={form.categoria_id}
+              onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}
+              required
+            >
+              <option value="" disabled>Selecione</option>
+              {categorias.map((categoria) => (
+                <option key={categoria.id} value={categoria.id}>
+                  {categoria.nome} ({categoria.tipo === "RECEITA" ? "Receita" : "Despesa"})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="form-acoes">
+          <button type="submit">{editandoId ? "Salvar alterações" : "Adicionar"}</button>
+          {editandoId && (
+            <button type="button" className="secundario" onClick={cancelarEdicao}>
+              Cancelar
+            </button>
+          )}
+        </div>
       </form>
 
       {erro && <p className="mensagem-erro">{erro}</p>}
 
-      {carregando ? (
-        <p>Carregando...</p>
-      ) : (
+      <div className="card" style={{ marginBottom: 0 }}>
         <table className="tabela">
           <thead>
             <tr>
@@ -174,32 +188,40 @@ export function TransacoesPage() {
             </tr>
           </thead>
           <tbody>
-            {transacoes.map((transacao) => (
-              <tr key={transacao.id}>
-                <td>{transacao.data.split("-").reverse().join("/")}</td>
-                <td>{transacao.descricao}</td>
-                <td>{transacao.categoria.nome}</td>
-                <td className={transacao.tipo === "RECEITA" ? "valor-receita" : "valor-despesa"}>
-                  {transacao.tipo === "RECEITA" ? "+" : "-"} R$ {Number(transacao.valor).toFixed(2)}
-                </td>
-                <td className="acoes">
-                  <button className="link" onClick={() => iniciarEdicao(transacao)}>
-                    Editar
-                  </button>
-                  <button className="link perigo" onClick={() => handleExcluir(transacao.id)}>
-                    Excluir
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {transacoes.length === 0 && (
-              <tr>
+            {carregando ? (
+              <SkeletonLinhas colunas={5} quantidade={6} />
+            ) : transacoes.length === 0 ? (
+              <tr className="tabela-vazia">
                 <td colSpan={5}>Nenhuma transação neste mês.</td>
               </tr>
+            ) : (
+              transacoes.map((transacao) => (
+                <tr key={transacao.id}>
+                  <td>{transacao.data.split("-").reverse().join("/")}</td>
+                  <td>{transacao.descricao}</td>
+                  <td>
+                    {transacao.categoria.nome}{" "}
+                    <span className={`badge badge-${transacao.tipo.toLowerCase()}`}>
+                      {transacao.tipo === "RECEITA" ? "Receita" : "Despesa"}
+                    </span>
+                  </td>
+                  <td className={transacao.tipo === "RECEITA" ? "valor-receita" : "valor-despesa"}>
+                    {transacao.tipo === "RECEITA" ? "+" : "−"} R$ {Number(transacao.valor).toFixed(2)}
+                  </td>
+                  <td className="acoes">
+                    <button className="link" onClick={() => iniciarEdicao(transacao)}>
+                      Editar
+                    </button>
+                    <button className="link perigo" onClick={() => handleExcluir(transacao.id)}>
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
-      )}
+      </div>
     </div>
   );
 }
