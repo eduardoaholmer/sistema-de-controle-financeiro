@@ -13,7 +13,7 @@ Log incremental do que foi construído, por milestone/tarefa. Serve como referê
 
 ### 1.2 — Git + .gitignore
 - `git init` na raiz do projeto.
-- `.gitignore` cobrindo Python (`__pycache__`, `venv`), Node (`node_modules`, `build`), `.env`, arquivos de editor/SO e config local do Claude Code.
+- `.gitignore` cobrindo Python (`__pycache__`, `venv`), Node (`node_modules`, `build`), `.env`, arquivos de editor/SO e configs locais da máquina.
 - Commit inicial: `chore: initialize project structure and git config`.
 
 ### 1.3 — Husky + Commitlint
