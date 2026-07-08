@@ -8,6 +8,18 @@ import {
 
 const FORM_VAZIO = { nome: "", tipo: "DESPESA" };
 
+function SkeletonLinhas({ colunas, quantidade = 6 }) {
+  return Array.from({ length: quantidade }, (_, i) => (
+    <tr key={i}>
+      {Array.from({ length: colunas }, (_, j) => (
+        <td key={j}>
+          <div className="skeleton skeleton-linha" style={{ width: j === 0 ? "65%" : "40%" }} />
+        </td>
+      ))}
+    </tr>
+  ));
+}
+
 export function CategoriasPage() {
   const [categorias, setCategorias] = useState([]);
   const [form, setForm] = useState(FORM_VAZIO);
@@ -78,6 +90,8 @@ export function CategoriasPage() {
             onChange={(e) => setForm({ ...form, nome: e.target.value })}
             required
             minLength={2}
+            placeholder="Ex: Alimentação"
+            style={{ width: 220 }}
           />
         </label>
         <label>
@@ -86,24 +100,25 @@ export function CategoriasPage() {
             value={form.tipo}
             onChange={(e) => setForm({ ...form, tipo: e.target.value })}
             disabled={!!editandoId}
+            style={{ width: 130 }}
           >
             <option value="DESPESA">Despesa</option>
             <option value="RECEITA">Receita</option>
           </select>
         </label>
-        <button type="submit">{editandoId ? "Salvar" : "Adicionar"}</button>
-        {editandoId && (
-          <button type="button" className="secundario" onClick={cancelarEdicao}>
-            Cancelar
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "0.5rem", alignSelf: "flex-end" }}>
+          <button type="submit">{editandoId ? "Salvar" : "Adicionar"}</button>
+          {editandoId && (
+            <button type="button" className="secundario" onClick={cancelarEdicao}>
+              Cancelar
+            </button>
+          )}
+        </div>
       </form>
 
       {erro && <p className="mensagem-erro">{erro}</p>}
 
-      {carregando ? (
-        <p>Carregando...</p>
-      ) : (
+      <div className="card" style={{ marginBottom: 0 }}>
         <table className="tabela">
           <thead>
             <tr>
@@ -113,32 +128,35 @@ export function CategoriasPage() {
             </tr>
           </thead>
           <tbody>
-            {categorias.map((categoria) => (
-              <tr key={categoria.id}>
-                <td>{categoria.nome}</td>
-                <td>
-                  <span className={`badge badge-${categoria.tipo.toLowerCase()}`}>
-                    {categoria.tipo === "RECEITA" ? "Receita" : "Despesa"}
-                  </span>
-                </td>
-                <td className="acoes">
-                  <button className="link" onClick={() => iniciarEdicao(categoria)}>
-                    Editar
-                  </button>
-                  <button className="link perigo" onClick={() => handleExcluir(categoria.id)}>
-                    Excluir
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {categorias.length === 0 && (
-              <tr>
+            {carregando ? (
+              <SkeletonLinhas colunas={3} quantidade={6} />
+            ) : categorias.length === 0 ? (
+              <tr className="tabela-vazia">
                 <td colSpan={3}>Nenhuma categoria cadastrada ainda.</td>
               </tr>
+            ) : (
+              categorias.map((categoria) => (
+                <tr key={categoria.id}>
+                  <td>{categoria.nome}</td>
+                  <td>
+                    <span className={`badge badge-${categoria.tipo.toLowerCase()}`}>
+                      {categoria.tipo === "RECEITA" ? "Receita" : "Despesa"}
+                    </span>
+                  </td>
+                  <td className="acoes">
+                    <button className="link" onClick={() => iniciarEdicao(categoria)}>
+                      Editar
+                    </button>
+                    <button className="link perigo" onClick={() => handleExcluir(categoria.id)}>
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
-      )}
+      </div>
     </div>
   );
 }

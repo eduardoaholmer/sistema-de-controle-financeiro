@@ -25,17 +25,76 @@ function formatarMoeda(valor) {
   return `R$ ${Number(valor).toFixed(2)}`;
 }
 
+function IconeReceita() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="17 11 12 6 7 11" />
+      <line x1="12" y1="18" x2="12" y2="6" />
+    </svg>
+  );
+}
+
+function IconeDespesa() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="7 13 12 18 17 13" />
+      <line x1="12" y1="6" x2="12" y2="18" />
+    </svg>
+  );
+}
+
+function IconeSaldo() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4z" />
+    </svg>
+  );
+}
+
+function CartoesSkeleton() {
+  return (
+    <div className="cartoes-resumo">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="card cartao-resumo">
+          <div className="skeleton" style={{ width: 44, height: 44, borderRadius: 11 }} />
+          <div className="cartao-resumo-info" style={{ flex: 1 }}>
+            <div className="skeleton skeleton-linha" style={{ width: "50%" }} />
+            <div className="skeleton skeleton-linha" style={{ width: "70%", height: "1.4em", marginTop: 4 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SkeletonLinhas({ colunas, quantidade = 5 }) {
+  return Array.from({ length: quantidade }, (_, i) => (
+    <tr key={i}>
+      {Array.from({ length: colunas }, (_, j) => (
+        <td key={j}>
+          <div className="skeleton skeleton-linha" style={{ width: j === 1 ? "75%" : "55%" }} />
+        </td>
+      ))}
+    </tr>
+  ));
+}
+
 export function DashboardPage() {
   const [mesFiltro, setMesFiltro] = useState(mesAtual());
   const [resumo, setResumo] = useState(null);
   const [gastosPorCategoria, setGastosPorCategoria] = useState([]);
   const [ultimasMovimentacoes, setUltimasMovimentacoes] = useState([]);
+  const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
 
   const [ano, mes] = mesFiltro.split("-").map(Number);
 
   useEffect(() => {
     async function carregar() {
+      setCarregando(true);
+      setErro(null);
       try {
         const [resumoRes, gastosRes, ultimasRes] = await Promise.all([
           obterResumo(ano, mes),
@@ -47,6 +106,8 @@ export function DashboardPage() {
         setUltimasMovimentacoes(ultimasRes);
       } catch (erro) {
         setErro(erro.message);
+      } finally {
+        setCarregando(false);
       }
     }
     carregar();
@@ -74,21 +135,32 @@ export function DashboardPage() {
         </label>
       </div>
 
-      {resumo && (
+      {carregando ? (
+        <CartoesSkeleton />
+      ) : resumo && (
         <div className="cartoes-resumo">
-          <div className="card cartao-resumo">
-            <span>Receitas</span>
-            <strong className="valor-receita">{formatarMoeda(resumo.total_receitas)}</strong>
+          <div className="card cartao-resumo cartao-borda-receita">
+            <div className="cartao-icone cartao-icone-receita"><IconeReceita /></div>
+            <div className="cartao-resumo-info">
+              <span>Receitas</span>
+              <strong className="valor-receita">{formatarMoeda(resumo.total_receitas)}</strong>
+            </div>
           </div>
-          <div className="card cartao-resumo">
-            <span>Despesas</span>
-            <strong className="valor-despesa">{formatarMoeda(resumo.total_despesas)}</strong>
+          <div className="card cartao-resumo cartao-borda-despesa">
+            <div className="cartao-icone cartao-icone-despesa"><IconeDespesa /></div>
+            <div className="cartao-resumo-info">
+              <span>Despesas</span>
+              <strong className="valor-despesa">{formatarMoeda(resumo.total_despesas)}</strong>
+            </div>
           </div>
-          <div className="card cartao-resumo">
-            <span>Saldo</span>
-            <strong className={Number(resumo.saldo) >= 0 ? "valor-receita" : "valor-despesa"}>
-              {formatarMoeda(resumo.saldo)}
-            </strong>
+          <div className="card cartao-resumo cartao-borda-saldo">
+            <div className="cartao-icone cartao-icone-saldo"><IconeSaldo /></div>
+            <div className="cartao-resumo-info">
+              <span>Saldo</span>
+              <strong className={Number(resumo.saldo) >= 0 ? "valor-receita" : "valor-despesa"}>
+                {formatarMoeda(resumo.saldo)}
+              </strong>
+            </div>
           </div>
         </div>
       )}
@@ -96,13 +168,13 @@ export function DashboardPage() {
       <div className="graficos">
         <div className="card grafico">
           <h2>Receitas x Despesas</h2>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={dadosBarras}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nome" />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="nome" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
               <Tooltip formatter={(valor) => formatarMoeda(valor)} />
-              <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="valor" radius={[5, 5, 0, 0]}>
                 <Cell fill="#22c55e" />
                 <Cell fill="#ef4444" />
               </Bar>
@@ -113,17 +185,17 @@ export function DashboardPage() {
         <div className="card grafico">
           <h2>Gastos por categoria</h2>
           {dadosPizza.length === 0 ? (
-            <p>Nenhuma despesa neste mês.</p>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>Nenhuma despesa neste mês.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie data={dadosPizza} dataKey="valor" nameKey="nome" outerRadius={90} label>
+                <Pie data={dadosPizza} dataKey="valor" nameKey="nome" outerRadius={85} label>
                   {dadosPizza.map((_, indice) => (
                     <Cell key={indice} fill={CORES_CATEGORIAS[indice % CORES_CATEGORIAS.length]} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(valor) => formatarMoeda(valor)} />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: "0.8rem" }} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -142,20 +214,28 @@ export function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {ultimasMovimentacoes.map((transacao) => (
-              <tr key={transacao.id}>
-                <td>{transacao.data.split("-").reverse().join("/")}</td>
-                <td>{transacao.descricao}</td>
-                <td>{transacao.categoria.nome}</td>
-                <td className={transacao.tipo === "RECEITA" ? "valor-receita" : "valor-despesa"}>
-                  {transacao.tipo === "RECEITA" ? "+" : "-"} {formatarMoeda(transacao.valor)}
-                </td>
-              </tr>
-            ))}
-            {ultimasMovimentacoes.length === 0 && (
-              <tr>
+            {carregando ? (
+              <SkeletonLinhas colunas={4} quantidade={5} />
+            ) : ultimasMovimentacoes.length === 0 ? (
+              <tr className="tabela-vazia">
                 <td colSpan={4}>Nenhuma movimentação ainda.</td>
               </tr>
+            ) : (
+              ultimasMovimentacoes.map((transacao) => (
+                <tr key={transacao.id}>
+                  <td>{transacao.data.split("-").reverse().join("/")}</td>
+                  <td>{transacao.descricao}</td>
+                  <td>
+                    {transacao.categoria.nome}{" "}
+                    <span className={`badge badge-${transacao.tipo.toLowerCase()}`}>
+                      {transacao.tipo === "RECEITA" ? "Receita" : "Despesa"}
+                    </span>
+                  </td>
+                  <td className={transacao.tipo === "RECEITA" ? "valor-receita" : "valor-despesa"}>
+                    {transacao.tipo === "RECEITA" ? "+" : "−"} {formatarMoeda(transacao.valor)}
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
