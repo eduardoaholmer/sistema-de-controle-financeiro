@@ -100,3 +100,45 @@ Log incremental do que foi construído, por milestone/tarefa. Serve como referê
 - `app/crud/categoria.py`: toda consulta filtra por `id` **e** `usuario_id` juntos (não só depois de buscar) — categoria de outro usuário nunca é encontrada, retorna 404 em vez de vazar existência via 403.
 - `app/api/routes/categoria.py`: `POST/GET/GET-by-id/PUT/DELETE /categorias`, todas protegidas com `Depends(get_current_usuario)`. `GET /categorias?tipo=DESPESA` filtra por tipo (uso futuro: dropdown do frontend). `DELETE` captura `IntegrityError` do `ON DELETE RESTRICT` e devolve `409` com mensagem amigável em vez de erro 500 cru.
 - Validado via `curl` com o usuário de teste: criação (com acento — via arquivo, `curl -d` inline tem problema de encoding no Git Bash com caracteres UTF-8), duplicidade (409), listagem com e sem filtro, sem token (401), atualização, não encontrada (404), exclusão bem-sucedida (204), e exclusão bloqueada por transação vinculada (409) — inserida manualmente via SQL só para esse teste, já que o CRUD de Transações ainda não existe.
+
+---
+
+## Milestone 6 — CRUD de Transações (Receitas + Despesas)
+
+Os Milestones 6 e 7 do roadmap original (CRUD de Receitas e CRUD de Despesas separados) foram unificados num único CRUD de `Transações`, refletindo a decisão de modelagem do Milestone 2 (tabela única com discriminador `tipo`).
+
+- `app/schemas/transacao.py`: `TransacaoCreate`/`Update` **não têm campo `tipo`** — ele é derivado automaticamente do `tipo` da categoria escolhida (`categoria_id`), eliminando por construção a possibilidade de uma transação DESPESA numa categoria RECEITA. `TransacaoResponse` inclui a categoria aninhada (`CategoriaResumo`).
+- `app/crud/transacao.py` + `app/crud/utils.py` (`filtrar_por_mes`, reaproveitado depois no dashboard): filtro por mês usa **intervalo de datas** (`data >= primeiro_dia AND data <= ultimo_dia`), não `EXTRACT()`, para aproveitar o índice composto `(usuario_id, data)` criado no Milestone 3.
+- `app/api/routes/transacao.py`: mesmo padrão de escopo por usuário e tratamento de erros dos Milestones 4/5. Categoria inválida ou de outro usuário → `400`.
+- Validado via `curl`: criação de RECEITA e DESPESA com `tipo` corretamente derivado, categoria inválida (400), valor negativo rejeitado pelo Pydantic (422), atualização, exclusão (204 → 404 depois).
+
+## Milestone 9 e 11 — Dashboard, Filtros e Gráficos (backend)
+
+- `app/schemas/dashboard.py` + `app/crud/dashboard.py`: três consultas agregadas —
+  - `calcular_resumo`: soma de `valor` agrupada por `tipo` (`SUM ... GROUP BY tipo`), retorna receitas/despesas/saldo.
+  - `gastos_por_categoria`: `JOIN transacoes/categorias`, soma por categoria, só DESPESA, ordenado do maior gasto pro menor.
+  - `ultimas_movimentacoes`: últimas N transações com `joinedload(categoria)` (evita N+1 query ao serializar a categoria de cada transação).
+- Todas aceitam `ano`/`mes` opcionais (mesmo filtro por mês reaproveitado de Transações) — sem eles, retornam o total geral.
+- `app/api/routes/dashboard.py`: `GET /dashboard/resumo`, `GET /dashboard/gastos-por-categoria`, `GET /dashboard/ultimas-movimentacoes`.
+- Validado via `curl`: resumo geral, resumo filtrado por mês com dados, resumo filtrado por mês sem dados (retorna zeros, não erro), gastos por categoria, últimas movimentações.
+
+---
+
+## Milestone 8, 9, 10, 11 — Frontend (React)
+
+Frontend construído em cima da API já validada. Duas dependências adicionadas além do React puro (justificadas — funcionalidades exigidas pelo escopo que não dá pra fazer de forma simples e limpa sem elas):
+- `react-router-dom`: roteamento SPA e proteção de rotas.
+- `recharts`: gráficos (Receitas x Despesas, Gastos por categoria).
+
+**Estrutura:**
+- `src/api/`: `client.js` (wrapper sobre `fetch`, injeta `Authorization: Bearer` automaticamente, trata `401` global redirecionando pro login, erros viram `Error` com a mensagem do backend) + um módulo por recurso (`auth.js`, `categorias.js`, `transacoes.js`, `dashboard.js`).
+- `src/context/AuthContext.jsx`: estado global do usuário logado. Token persistido em `localStorage`; ao carregar a página, se houver token, valida contra `GET /auth/me` antes de liberar rotas protegidas.
+- `src/components/ProtectedRoute.jsx`: redireciona pro `/login` se não houver usuário autenticado — implementação real da "proteção de rotas".
+- `src/components/Layout.jsx`: navegação entre Dashboard/Categorias/Transações + botão **Sair** (logout real: `localStorage.removeItem("token")`, sem chamada ao backend — JWT é stateless, como decidido no Milestone 4).
+- `src/pages/`: `LoginPage`, `RegisterPage`, `CategoriasPage` (CRUD completo), `TransacoesPage` (CRUD completo + filtro por mês via `<input type="month">`), `DashboardPage` (cartões de totais/saldo, gráfico de barras Receitas x Despesas, gráfico de pizza de gastos por categoria, tabela de últimas movimentações — tudo filtrável por mês).
+- CORS habilitado no backend (`app/main.py`) para a origem `http://localhost:5173`.
+- `VITE_API_URL` passado via `docker-compose.yml` — aponta pra `http://localhost:8000` porque quem faz as requisições é o **navegador** (fora da rede Docker), não outro container, então não pode usar o nome de serviço `backend`.
+
+**Validação:** como não há acesso a navegador interativo neste ambiente, a validação foi feita com um script Playwright headless (`chromium.launch`) dirigindo o fluxo completo: cadastro → redirecionamento pro login → login → criação de categoria RECEITA e DESPESA → criação de transação → volta ao dashboard conferindo totais e gráficos. Zero erros de console em todo o fluxo. Screenshots conferidos visualmente em cada etapa.
+
+**Gotcha de Docker encontrado e resolvido:** depois de instalar `react-router-dom`/`recharts` e reconstruir a imagem, o Vite continuava reclamando "Failed to resolve import" — o volume anônimo `/app/node_modules` (criado no Milestone 1) não é atualizado automaticamente quando a imagem é reconstruída, só na primeira criação do volume. Resolvido com `docker compose up --build --force-recreate -V frontend` (a flag `-V` força recriar volumes anônimos).
