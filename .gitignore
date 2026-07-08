@@ -23,5 +23,3 @@ Thumbs.db
 # --- Docker ---
 *.log
 
-# --- Config local da máquina ---
-.claude/settings.local.json
